@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Elm Theremin</title>
+    <script type="text/javascript" src="target/elm.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var oscillator = audioCtx.createOscillator();
+      var gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      var initialFreq = 3000;
+      var initalVol = 0.001;
+
+      oscillator.type = "sawtooth";
+      oscillator.frequency.value = initialFreq;
+      oscillator.detune.value = 100;
+      oscillator.start(0);
+
+      gainNode.gain.value = initalVol;
+
+      var app = Elm.Main.fullscreen();
+
+      app.ports.audio.subscribe(function(model){
+        gainNode.gain.value = model.gainValue;
+        oscillator.frequency.value = model.frequencyValue;
+      })
+    </script>
+  </body>
+</html>
