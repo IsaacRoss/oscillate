@@ -4,15 +4,28 @@
     <meta charset="UTF-8">
     <title>Elm Theremin</title>
     <script type="text/javascript" src="target/elm.js"></script>
+    <style>
+        .visualization { position: absolute; top 0; left 0; }
+    </style>
   </head>
   <body>
     <script type="text/javascript">
       var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       var oscillator = audioCtx.createOscillator();
       var gainNode = audioCtx.createGain();
+
+      var analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+
+      var bufferLenth = analyser.fftSize;
+      var dataArray = new Uint8Array(bufferLenth)
+      
+      oscillator.connect(gainNode)
       
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
+      gainNode.connect(analyser);
+      gainNode.connect(audioCtx.destination)
 
       var initialFreq = 3000;
       var initalVol = 0.001;
@@ -25,6 +38,18 @@
       gainNode.gain.value = initalVol;
 
       var app = Elm.Main.fullscreen();
+
+      var drawAnimationFrame
+
+      function draw() {
+        drawAnimationFrame = requestAnimationFrame(draw);
+
+        analyser.getByteTimeDomainData(dataArray);
+
+        app.ports.visualization.send(Array.from(dataArray))
+      }
+
+      draw();
 
       app.ports.audio.subscribe(function(model){
         gainNode.gain.value = model.gainValue;
