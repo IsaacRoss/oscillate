@@ -4,7 +4,7 @@ import Html exposing (Html, div, button, text, section, h1)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (class, type_)
 import Element exposing (Element)
-import Collage exposing (collage, path, traced, solid, move)
+import Collage exposing (collage, path, traced, solid, move, alpha, Form)
 import Color exposing (..)
 import Window
 import Task
@@ -22,8 +22,13 @@ type alias Model =
     , frequencyValue : Float
     , windowWidth : Int
     , windowHeight : Int
-    , visualizationData : List Int
+    , visualizationData : List (List Int)
     }
+
+
+pastVisualizationCount : Int
+pastVisualizationCount =
+    10
 
 
 getInitialWindowSize : Cmd Msg
@@ -108,41 +113,53 @@ view model =
 
 visualizationGraph : Model -> Element
 visualizationGraph model =
+    collage model.windowWidth
+        model.windowHeight
+        (List.indexedMap (visualizationGraphForDatum model.windowWidth model.windowHeight)
+            model.visualizationData
+        )
+
+
+visualizationGraphForDatum : Int -> Int -> Int -> List Int -> Form
+visualizationGraphForDatum windowWidth windowHeight count datum =
     let
         points =
-            (toPoints model)
+            toPoints windowWidth windowHeight count datum
+
+        alphaLevel =
+            case count of
+                0 ->
+                    1
+
+                _ ->
+                    0.1
     in
-        collage model.windowWidth
-            model.windowHeight
-            [ path points
-                |> traced (solid red)
-                |> move
-                    ( (toFloat model.windowWidth) / -2
-                    , (toFloat model.windowHeight) / -2
-                    )
-            ]
+        path points
+            |> traced (solid red)
+            |> alpha alphaLevel
+            |> move ( (toFloat windowWidth) / -2, (toFloat windowHeight) / -2 )
 
 
-toPoints : Model -> List ( Float, Float )
-toPoints model =
+toPoints : Int -> Int -> Int -> List Int -> List ( Float, Float )
+toPoints windowWidth windowHeight count datum =
     let
         sliceWidth =
-            (toFloat model.windowWidth) / (toFloat (List.length model.visualizationData))
+            (toFloat windowWidth) / (toFloat (List.length datum))
 
-        indexedDatumToPoint n datum =
+        indexedDatumToPoint n internalDatum =
             let
                 v =
-                    (toFloat datum) / 128
+                    (toFloat internalDatum) / 128
 
                 y =
-                    (v * (toFloat model.windowHeight)) / 2
+                    (v * (toFloat windowHeight)) / 2
 
                 x =
                     sliceWidth * (toFloat n)
             in
                 ( x, y )
     in
-        model.visualizationData
+        datum
             |> List.indexedMap indexedDatumToPoint
 
 
@@ -183,7 +200,16 @@ update msg model =
                 ( newModel, audio newModel )
 
         Visualization data ->
-            ( { model | visualizationData = data }, Cmd.none )
+            ( (updateVisualizationData data model), Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
+
+
+updateVisualizationData : List Int -> Model -> Model
+updateVisualizationData data model =
+    let
+        newVisualizationData =
+            data :: model.visualizationData
+    in
+        { model | visualizationData = List.take pastVisualizationCount newVisualizationData }
